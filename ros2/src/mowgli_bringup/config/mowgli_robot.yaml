@@ -718,6 +718,15 @@ mowgli:
     # be lowered (the clamp no longer blocks it), but that is a supervised
     # physical-behaviour change, not a config tidy-up.
     undock_speed: 0.16             # reverse speed (m/s)
+    # Undock direction. false (default): reverse off the dock via Nav2
+    # /backup — the robot docks nose-first onto front charge contacts. true:
+    # the robot docks in REVERSE (rear contacts, e.g. the Airseekers Tron) and
+    # drives FORWARD off the dock via /drive_on_heading for undock_distance at
+    # undock_speed; CalibrateHeadingFromUndock then reads the heading along
+    # the motion. Only the undock legs of main_tree.xml follow it; recovery
+    # BackUps always reverse. A backend default (config/backends/), not a
+    # per-site knob. Docking itself is unchanged (opennav_docking, forward).
+    undock_forward: false
     # Distance (m) to the staging pose behind the dock — the final
     # straight-in approach runway. Injected as opennav_docking
     # simple_charging_dock.staging_x_offset = -dock_approach_distance

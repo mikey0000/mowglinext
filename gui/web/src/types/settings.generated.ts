@@ -104,6 +104,7 @@ export interface SettingsValues {
     loc_sigma_backstop_persist_s?: number | null;
     undock_distance?: number | null;
     undock_speed?: number | null;
+    undock_forward?: boolean;
     dock_approach_distance?: number | null;
     dock_approach_overshoot?: number | null;
     dock_max_retries?: number | null;
