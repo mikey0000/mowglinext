@@ -4,7 +4,7 @@
  * layers, the panel and the hook — the backend is gui/pkg/api/imagery.go.
  */
 
-export type ImageryKind = "xyz";
+export type ImageryKind = "xyz" | "mbtiles";
 
 export interface ImageryOverlay {
     name: string;
@@ -26,7 +26,7 @@ export interface ImageryOverlay {
 }
 
 export const IMAGERY_MAX_UPLOAD_BYTES = 300 * 1024 * 1024;
-export const IMAGERY_ACCEPT = ".zip";
+export const IMAGERY_ACCEPT = ".zip,.mbtiles";
 
 /** Tile URL template for Mapbox; createdAt busts the browser cache on re-upload. */
 export function imageryTileUrl(o: Pick<ImageryOverlay, "name" | "createdAt" | "tileExt">, base = ""): string {

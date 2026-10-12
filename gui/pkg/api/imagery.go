@@ -11,12 +11,15 @@ package api
 //	<name>/tiles/<z>/<x>/<y>.<png|jpg|webp>   XYZ tiles (Google/OSM row order)
 //
 // An overlay is created by uploading a .zip of a z/x/y tile folder (QGIS
-// "Generate XYZ tiles (Directory)", gdal2tiles). The zip is unpacked in the
-// background and deleted; only the tiles are kept.
+// "Generate XYZ tiles (Directory)", gdal2tiles) or a raster .mbtiles file.
+// The upload is unpacked in the background and deleted; only the tiles are
+// kept.
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +27,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -33,6 +37,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	_ "modernc.org/sqlite" // pure-Go SQLite driver for reading .mbtiles
 )
 
 const (
@@ -202,8 +207,10 @@ func imageryKindForFile(filename string) (kind, ext string, err error) {
 	switch ext {
 	case ".zip":
 		return "xyz", ext, nil
+	case ".mbtiles":
+		return "mbtiles", ext, nil
 	}
-	return "", ext, fmt.Errorf("unsupported file type %q (upload a .zip of an XYZ tile folder)", ext)
+	return "", ext, fmt.Errorf("unsupported file type %q (upload a .zip of an XYZ tile folder or an .mbtiles file)", ext)
 }
 
 // ---------------------------------------------------------------------------
@@ -456,7 +463,7 @@ func cleanImageryLabel(s string) string {
 // and starts the background conversion. Text fields (label, scheme) must come
 // before the file part.
 //
-// @Summary upload a tile set (multipart: label, scheme auto|xyz|tms, then file)
+// @Summary upload a tile set: .zip or .mbtiles (multipart: label, scheme auto|xyz|tms for zips, then file)
 // @Tags imagery
 // @Accept mpfd
 // @Produce json
@@ -596,6 +603,8 @@ func (s *imageryStore) process(ctx context.Context, name, kind, srcPath, scheme 
 		switch kind {
 		case "xyz":
 			res, err = processXYZZip(ctx, srcPath, filepath.Join(dir, "tiles"), scheme, progress)
+		case "mbtiles":
+			res, err = processMBTiles(ctx, srcPath, filepath.Join(dir, "tiles"), progress)
 		default:
 			err = fmt.Errorf("unknown kind %q", kind)
 		}
@@ -804,4 +813,56 @@ func writeTile(dst string, r io.Reader) (int64, error) {
 		err = fmt.Errorf("tile %s is implausibly large", filepath.Base(dst))
 	}
 	return n, err
+}
+
+// processMBTiles unpacks the tiles of a raster MBTiles file (opened read-only)
+// into tileDir. MBTiles rows are TMS, so they are flipped to XYZ.
+func processMBTiles(ctx context.Context, srcPath, tileDir string, progress func(float64)) (imageryResult, error) {
+	dsn := "file:" + (&url.URL{Path: srcPath}).EscapedPath() + "?mode=ro&immutable=1"
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return imageryResult{}, err
+	}
+	defer db.Close()
+	format := "png" // the MBTiles spec default
+	_ = db.QueryRowContext(ctx, "SELECT value FROM metadata WHERE name = 'format'").Scan(&format)
+	ext := normTileExt(format)
+	if !imageryTileExts[ext] {
+		return imageryResult{}, fmt.Errorf("MBTiles format %q is not a raster image format (png, jpg or webp)", format)
+	}
+	var total int
+	_ = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tiles").Scan(&total)
+	rows, err := db.QueryContext(ctx,
+		"SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles WHERE length(tile_data) <= ?", imageryMaxTileBytes)
+	if err != nil {
+		return imageryResult{}, fmt.Errorf("not a raster MBTiles file: %w", err)
+	}
+	defer rows.Close()
+	st := newTileSetStats()
+	st.ext = ext
+	for rows.Next() {
+		var z, x, y int
+		var data []byte
+		if err := rows.Scan(&z, &x, &y, &data); err != nil {
+			return imageryResult{}, err
+		}
+		if !validTile(z, x, y) {
+			continue
+		}
+		y = tmsToXYZ(z, y)
+		n, err := writeTile(tilePath(tileDir, z, x, y, ext), bytes.NewReader(data))
+		if err != nil {
+			return imageryResult{}, err
+		}
+		if err := st.add(z, x, y, n); err != nil {
+			return imageryResult{}, err
+		}
+		if total > 0 && st.count%64 == 0 {
+			progress(float64(st.count) / float64(total))
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return imageryResult{}, err
+	}
+	return st.result()
 }

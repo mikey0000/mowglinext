@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"image"
 	"image/color"
@@ -335,4 +336,66 @@ func TestImageryDeleteWhileProcessing(t *testing.T) {
 	assert.NoDirExists(t, dir)
 	assert.Empty(t, s.cancels)
 	assert.Empty(t, s.list())
+}
+
+func writeMBTiles(t *testing.T, path, format string, tiles [][3]int, data []byte) {
+	t.Helper()
+	db, err := sql.Open("sqlite", path)
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE metadata (name text, value text);
+		CREATE TABLE tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob);`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO metadata VALUES ('format', ?)`, format)
+	require.NoError(t, err)
+	for _, tl := range tiles {
+		_, err = db.Exec(`INSERT INTO tiles VALUES (?, ?, ?, ?)`, tl[0], tl[1], tl[2], data)
+		require.NoError(t, err)
+	}
+}
+
+func TestProcessMBTiles(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "s.mbtiles")
+	writeMBTiles(t, p, "png", [][3]int{{21, 1098642, 1340000}, {20, 549321, 670000}, {2, 9, 0}}, pngBytes(t))
+	before, err := os.ReadFile(p)
+	require.NoError(t, err)
+
+	tiles := filepath.Join(dir, "tiles")
+	res, err := processMBTiles(context.Background(), p, tiles, func(float64) {})
+	require.NoError(t, err)
+	assert.Equal(t, 20, res.minZoom)
+	assert.Equal(t, 21, res.maxZoom)
+	assert.Equal(t, ".png", res.tileExt)
+	assert.FileExists(t, tilePath(tiles, 21, 1098642, tmsToXYZ(21, 1340000), ".png"))
+	assert.NoDirExists(t, filepath.Join(tiles, "2"), "tiles outside the grid are skipped")
+
+	after, err := os.ReadFile(p)
+	require.NoError(t, err)
+	assert.Equal(t, before, after, "the MBTiles file is opened read-only")
+}
+
+func TestProcessMBTilesRejectsVectorTiles(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "v.mbtiles")
+	writeMBTiles(t, p, "pbf", [][3]int{{14, 1, 1}}, []byte{1, 2, 3})
+	_, err := processMBTiles(context.Background(), p, filepath.Join(dir, "tiles"), func(float64) {})
+	assert.ErrorContains(t, err, "not a raster image format")
+}
+
+func TestImageryMBTilesUpload(t *testing.T) {
+	r, s := newImageryTestServer(t)
+	p := filepath.Join(t.TempDir(), "garden.mbtiles")
+	writeMBTiles(t, p, "jpg", [][3]int{{18, 137334, tmsToXYZ(18, 88791)}}, pngBytes(t))
+	data, err := os.ReadFile(p)
+	require.NoError(t, err)
+	w := uploadFile(t, r, "garden.mbtiles", data, nil)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	o := waitReady(t, s, "garden")
+	require.Equal(t, "ready", o.Status, o.Error)
+	assert.Equal(t, "mbtiles", o.Kind)
+	assert.Equal(t, ".jpg", o.TileExt)
+	w = imgReq(r, http.MethodGet, "/api/mowglinext/tiles/garden/18/137334/88791.jpg", nil)
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "image/jpeg", w.Header().Get("Content-Type"))
 }

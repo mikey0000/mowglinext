@@ -4785,11 +4785,11 @@
   "imagery": {
     "title": "Custom map tiles",
     "drop": "Drop a tile set here or click to choose",
-    "dropHint": "A .zip of an XYZ tile folder (<z>/<x>/<y>.png), up to {{mb}} MB",
+    "dropHint": "A .zip of an XYZ tile folder (<z>/<x>/<y>.png) or an .mbtiles file, up to {{mb}} MB",
     "zipScheme": "Tile .zip rows",
     "schemeAuto": "Auto-detect",
     "tooLarge": "File is larger than {{mb}} MB",
-    "badType": "Unsupported file type (use a .zip of XYZ tiles)",
+    "badType": "Unsupported file type (use a .zip of XYZ tiles or an .mbtiles file)",
     "uploaded": "Uploaded \"{{label}}\"",
     "processingHint": "The robot is unpacking it; it appears on the map when ready.",
     "uploadFailed": "Upload failed",

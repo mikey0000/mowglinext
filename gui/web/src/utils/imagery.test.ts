@@ -32,6 +32,7 @@ describe("custom map tile helpers", () => {
 
     it("validateUpload checks type and the 300 MB limit", () => {
         expect(validateUpload({name: "tiles.ZIP", size: 10})).toBeNull();
+        expect(validateUpload({name: "garden.mbtiles", size: 10})).toBeNull();
         expect(validateUpload({name: "o.exe", size: 10})).toBe("type");
         expect(validateUpload({name: "zip", size: 10})).toBe("type");
         expect(validateUpload({name: "o.zip", size: 301 * 1024 * 1024})).toBe("size");

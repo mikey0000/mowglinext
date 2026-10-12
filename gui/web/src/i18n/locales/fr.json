@@ -4785,11 +4785,11 @@
   "imagery": {
     "title": "Tuiles de carte personnalisées",
     "drop": "Déposez un jeu de tuiles ici ou cliquez pour choisir",
-    "dropHint": "Un .zip d'un dossier de tuiles XYZ (<z>/<x>/<y>.png), jusqu'à {{mb}} Mo",
+    "dropHint": "Un .zip d'un dossier de tuiles XYZ (<z>/<x>/<y>.png) ou un fichier .mbtiles, jusqu'à {{mb}} Mo",
     "zipScheme": "Lignes du .zip de tuiles",
     "schemeAuto": "Détection auto",
     "tooLarge": "Le fichier dépasse {{mb}} Mo",
-    "badType": "Type de fichier non pris en charge (utilisez un .zip de tuiles XYZ)",
+    "badType": "Type de fichier non pris en charge (utilisez un .zip de tuiles XYZ ou un fichier .mbtiles)",
     "uploaded": "« {{label}} » envoyé",
     "processingHint": "Le robot le décompresse ; il apparaîtra sur la carte une fois prêt.",
     "uploadFailed": "Échec de l'envoi",

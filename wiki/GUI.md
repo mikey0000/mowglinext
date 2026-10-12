@@ -129,7 +129,7 @@ The card tags itself *stale* when the last `/fusion_graph/diagnostics` sample is
 
 ### Map: custom map tiles
 
-Your own imagery (typically a drone orthomosaic, a few cm per pixel) can be drawn over the Mapbox satellite base. Upload it as a **`.zip` of an XYZ tile folder** (`<z>/<x>/<y>.png`, `.jpg` or `.webp`, up to 300 MB) in the **Custom map tiles** section of the Map page's right-hand panel (on a phone: `…` menu → *Custom map tiles*). The robot unpacks it in the background; the layer then appears with a visibility switch, an opacity slider, up/down buttons (the top of the list draws on top), zoom-to and delete. Custom tiles always draw above the base map and below the areas, paths and robot, and the list is saved on the robot.
+Your own imagery (typically a drone orthomosaic, a few cm per pixel) can be drawn over the Mapbox satellite base. Upload it as a **`.zip` of an XYZ tile folder** (`<z>/<x>/<y>.png`, `.jpg` or `.webp`) or a raster **`.mbtiles`** file, up to 300 MB, in the **Custom map tiles** section of the Map page's right-hand panel (on a phone: `…` menu → *Custom map tiles*). The robot unpacks it in the background; the layer then appears with a visibility switch, an opacity slider, up/down buttons (the top of the list draws on top), zoom-to and delete. Custom tiles always draw above the base map and below the areas, paths and robot, and the list is saved on the robot.
 
 Making the tile set on a PC:
 
@@ -139,7 +139,7 @@ gdal2tiles.py --xyz -z 16-22 -w none orthophoto.tif tiles/
 (cd tiles && zip -r ../garden_tiles.zip .)
 ```
 
-QGIS works too: *Processing → Generate XYZ tiles (Directory)*, then zip the folder. Tile sets in the TMS row order (gdal2tiles without `--xyz`) are recognised from their `tilemapresource.xml`; the *Tile .zip rows* selector forces XYZ or TMS when that file is missing.
+QGIS works too: *Processing → Generate XYZ tiles (Directory)*, then zip the folder, or *Generate XYZ tiles (MBTiles)* and upload the `.mbtiles` as is (`gdal_translate -of MBTILES in.tif out.mbtiles && gdaladdo -r average out.mbtiles 2 4 8 16` does the same with GDAL). Tile sets in the TMS row order (gdal2tiles without `--xyz`) are recognised from their `tilemapresource.xml`; the *Tile .zip rows* selector forces XYZ or TMS when that file is missing.
 
 The tiles are stored on the `mowgli_maps` volume under `/ros2_ws/maps/map_tiles/` (`MAP_TILES_DIR` overrides it), so they are included in the updater's backup — delete layers you no longer need. The API is `GET/POST /api/mowglinext/imagery`, `PATCH/DELETE /api/mowglinext/imagery/{name}`, `POST /api/mowglinext/imagery-order` and `GET /api/mowglinext/tiles/{name}/{z}/{x}/{y}.png` (cached for 7 days; `204` outside the tile set).
 
