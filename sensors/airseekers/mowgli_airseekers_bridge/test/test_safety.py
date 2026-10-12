@@ -3,6 +3,7 @@
 """The safety model: every branch of the blade / wheel / dock gates, the
 emergency latch and the SpeedData transmit policy."""
 import itertools
+import os
 
 import pytest
 
@@ -54,6 +55,78 @@ def test_dock_guard_holds_until_undock():
     assert g.filter(True, HL_AUTONOMOUS, True, -0.1, 0.0)[:2] == (0.0, 0.0)   # into the charger
     assert DockGuard(allow_reverse=True).filter(True, HL_AUTONOMOUS, True, -0.1, 0.0)[:2] \
         == (-0.1, 0.0)
+
+
+UNDOCK_SPEED = 0.16   # mowgli_robot.yaml undock_speed (template default)
+
+
+def _wheel_gate(guard, docked, hl_mode, hl_fresh, lin, ang=0.0, emergency=False):
+    """The bridge's _control_tick order: wheel gate, then the dock guard."""
+    if not wheels_may_run(emergency, True, hl_mode, True):
+        return 0.0, 0.0
+    return guard.filter(docked, hl_mode, hl_fresh, lin, ang)[:2]
+
+
+def test_forward_undock_sequence():
+    """docked + IDLE: nothing; the BT leaves IDLE and drives forward at the
+    undock speed (undock_forward): it passes; a reverse (a stock BackUp undock)
+    is refused for as long as dock_ok is reported; once the contacts open the
+    normal driving rules apply and reverse passes again."""
+    g = DockGuard()
+    # On the dock, BT idle: the forward undock command must not leak early.
+    assert _wheel_gate(g, True, HL_IDLE, True, UNDOCK_SPEED) == (0.0, 0.0)
+    assert _wheel_gate(g, True, HL_NULL, True, UNDOCK_SPEED) == (0.0, 0.0)
+    # BT left IDLE but its status is stale: still held.
+    assert _wheel_gate(g, True, HL_AUTONOMOUS, False, UNDOCK_SPEED) == (0.0, 0.0)
+    # Undock issued: forward passes unchanged, reverse is refused.
+    assert _wheel_gate(g, True, HL_AUTONOMOUS, True, UNDOCK_SPEED) == (UNDOCK_SPEED, 0.0)
+    assert _wheel_gate(g, True, HL_AUTONOMOUS, True, -UNDOCK_SPEED) == (0.0, 0.0)
+    assert _wheel_gate(g, True, HL_AUTONOMOUS, True, -1e-3) == (0.0, 0.0)
+    # Also in manual mode (operator undock): forward only.
+    assert _wheel_gate(g, True, HL_MANUAL_MOWING, True, UNDOCK_SPEED) == (UNDOCK_SPEED, 0.0)
+    assert _wheel_gate(g, True, HL_MANUAL_MOWING, True, -UNDOCK_SPEED) == (0.0, 0.0)
+    # An emergency still wins over the undock.
+    assert _wheel_gate(g, True, HL_AUTONOMOUS, True, UNDOCK_SPEED, emergency=True) == (0.0, 0.0)
+    # Off the pads (dock_ok dropped): the dock guard steps aside.
+    assert _wheel_gate(g, False, HL_AUTONOMOUS, True, -UNDOCK_SPEED) == (-UNDOCK_SPEED, 0.0)
+    assert _wheel_gate(g, False, HL_AUTONOMOUS, True, UNDOCK_SPEED, 0.2) == (UNDOCK_SPEED, 0.2)
+
+
+def test_dock_guard_reason_names_the_refusal():
+    g = DockGuard()
+    assert 'reverse refused' in g.filter(True, HL_AUTONOMOUS, True, -0.1, 0.0)[2]
+    assert 'waiting for an undock' in g.filter(True, HL_IDLE, True, 0.1, 0.0)[2]
+    assert g.filter(True, HL_AUTONOMOUS, True, UNDOCK_SPEED, 0.0)[2] == ''
+
+
+def test_speed_tx_streams_the_forward_undock_and_stops_cleanly():
+    """The undock leg on the wire: slewed up to the undock speed, never a
+    reverse frame, then explicit zeros once the leg ends."""
+    tx = SpeedTx()
+    frames = []
+    for i in range(40):                                   # 2 s at 20 Hz
+        frames += tx.tick(i * 0.05, UNDOCK_SPEED, 0.0)
+    assert frames and all(lin >= 0.0 for lin, _ in frames)
+    assert frames[-1][0] == pytest.approx(UNDOCK_SPEED)
+    stop = []
+    for i in range(40, 50):
+        stop += tx.tick(i * 0.05, 0.0, 0.0)
+    assert stop == [(0.0, 0.0)] * 3
+
+
+def test_airseekers_backend_undocks_forward():
+    """The guard refuses reverse on the dock, so the backend must make the BT
+    undock forward (template key undock_forward, backends/airseekers.yaml)."""
+    yaml = pytest.importorskip('yaml')
+    cfg = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'ros2', 'src',
+                       'mowgli_bringup', 'config')
+    with open(os.path.join(cfg, 'mowgli_robot.yaml'), encoding='utf-8') as fh:
+        template = yaml.safe_load(fh)['mowgli']['ros__parameters']
+    with open(os.path.join(cfg, 'backends', 'airseekers.yaml'), encoding='utf-8') as fh:
+        backend = yaml.safe_load(fh)['mowgli']['ros__parameters']
+    assert template['undock_forward'] is False      # upstream default: reverse off the dock
+    assert backend['undock_forward'] is True
+    assert DockGuard().allow_reverse is False
 
 
 def test_latch_on_boot_and_release():

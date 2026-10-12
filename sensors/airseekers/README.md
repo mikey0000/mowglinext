@@ -188,10 +188,13 @@ is **safety-critical**.
    gyro until this is checked; `odom_angular_source: mcu` switches.
 4. **Drive-board current units** (MotorInfo) — only the cutter's are used.
 5. Chassis geometry and IMU/GNSS lever arms (template keys, see *Bring-up*).
-6. Undock/dock direction: MowgliNext undocks with a Nav2 BackUp, the Tron must
-   drive **forward** off its charger and docks reversing on an ArUco marker
-   (MowgliNext plan P10). Until that lands, autonomous docking is not
-   supported on this backend; the bridge refuses reverse motion on the dock.
+6. Dock direction: the Tron docks reversing on an ArUco marker (MowgliNext
+   plan P10: `dock_backwards` plus a marker detector). Until that lands,
+   autonomous **docking** is not supported on this backend. **Undocking** is:
+   the backend sets `undock_forward: true`, so the BT's undock legs drive
+   forward off the charger (`/drive_on_heading`, `undock_distance` at
+   `undock_speed`) and the heading calibration reads the heading along the
+   motion. The bridge still refuses reverse motion while docked.
 
 ## Not covered (yet)
 

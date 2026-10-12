@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from airseekers_emulator import Mcu  # noqa: E402
+from airseekers_emulator import DockPads, Mcu  # noqa: E402
 from kinematics import DriveParams, Plant, wheel_speeds  # noqa: E402
 from mowgli_airseekers_bridge import protocol as P  # noqa: E402
 
@@ -96,3 +96,19 @@ def test_plant_clamps_and_floors():
     for _ in range(200):
         plant.step(0.01, 0.2, 0.0)
     assert abs(plant.v - 0.2) < 1e-3 and plant.x > 0.3
+
+
+def test_dock_pads_open_only_after_driving_forward_off_them():
+    plant = Plant(DriveParams())
+    pads = DockPads(plant.x, plant.y, plant.yaw, pad_m=0.10)
+    for _ in range(100):                      # reverse into the dock: a hard stop
+        plant.step(0.01, -0.15, 0.0)
+        assert pads.step(plant)
+    assert pads.pushes > 0 and abs(pads.along(plant)) < 1e-9
+    for _ in range(400):                      # forward undock at 0.16 m/s
+        plant.step(0.01, 0.16, 0.0)
+        if not pads.step(plant):
+            break
+    assert not pads.seated and pads.along(plant) > 0.10
+    plant.step(0.5, -0.15, 0.0)               # left for good: no stop behind any more
+    assert not pads.step(plant)
