@@ -10,6 +10,7 @@
       "gnss_stack": "disabled",
       "max_mps": 0.3,
       "tilt_emergency_ms": 300,
+      "undock_forward": true,
       "wheel_track": 0.48
     },
     "openmower": {

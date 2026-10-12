@@ -462,6 +462,70 @@ def s08_docked(probe, rig, R):
     stop_driving(probe, rig)
 
 
+UNDOCK_SPEED = 0.16       # template undock_speed
+UNDOCK_DISTANCE = 0.6     # shorter than the template's 1.5 m: only the dock exit matters here
+
+
+def s12_undock_forward(probe, rig, R):
+    """The Tron reverses onto its charger, so it undocks FORWARD
+    (backends/airseekers.yaml undock_forward: true -> the BT's undock BackUps
+    use /drive_on_heading). Closed loop on a dock-pad model: the contacts open
+    only once the robot has driven off them, and the dock body is a hard stop
+    behind it."""
+    S = 'undock forward'
+    probe.hl_state = IDLE
+    probe.cmd = None
+    at_rest = wait_for(lambda: rig.snapshot()['setpoint'] == (0.0, 0.0)
+                       and abs(rig.snapshot()['v']) < 1e-3, 5)
+    R.check(S, 'at rest before seating', at_rest, f"{rig.snapshot()['setpoint']}")
+    rig.seat_on_dock(pad_m=0.10)
+    R.check(S, 'seated: is_charging', wait_for(lambda: probe.get('status').is_charging, 3))
+
+    # The BT leaves IDLE; a stock (reverse) BackUp undock is refused outright.
+    probe.hl_state = AUTONOMOUS
+    t0 = rig.now_ms()
+    probe.cmd = (-UNDOCK_SPEED, 0.0)
+    time.sleep(1.5)
+    frames = speed_frames(rig, t0)
+    R.check(S, 'reverse undock refused while docked: no SpeedData', not frames, f'{frames[:5]}')
+    snap = rig.snapshot()
+    R.check(S, 'reverse: robot did not move and is still charging',
+            abs(snap['dock_along']) < 0.005 and snap['dock_pushes'] == 0
+            and probe.get('status').is_charging, f"along={snap['dock_along']:.4f}")
+
+    # undock_forward: the same leg driven forward at the undock speed.
+    t1 = rig.now_ms()
+    probe.cmd = (UNDOCK_SPEED, 0.0)
+    left = wait_for(lambda: not probe.get('status').is_charging, 5)
+    snap = rig.snapshot()
+    R.check(S, 'forward undock leaves the pads: is_charging drops', left,
+            f"along={snap['dock_along']:.3f}")
+    R.check(S, 'Power.charger_enabled and /battery_state current follow',
+            wait_for(lambda: probe.get('power') is not None
+                     and not probe.get('power').charger_enabled
+                     and probe.get('battery').current == 0.0, 2))
+    R.check(S, 'undock distance covered forward',
+            wait_for(lambda: rig.snapshot()['dock_along'] >= UNDOCK_DISTANCE, 8),
+            f"along={rig.snapshot()['dock_along']:.3f}")
+    frames = [v for _, v in speed_frames(rig, t1)]
+    R.check(S, 'forward SpeedData only, up to the undock speed',
+            bool(frames) and all(lin >= 0.0 for lin, _ in frames)
+            and abs(max(lin for lin, _ in frames) - UNDOCK_SPEED) < 0.01,
+            f'{len(frames)} frames, max {max((f[0] for f in frames), default=0):.3f}')
+    R.check(S, 'never pushed into the dock', rig.snapshot()['dock_pushes'] == 0)
+    R.check(S, '/wheel_odom live again off the dock',
+            wait_for(lambda: probe.get('odom').twist.twist.linear.x > 0.05, 2))
+
+    # Off the dock the normal driving rules apply: reverse is allowed again.
+    t2 = rig.now_ms()
+    probe.cmd = (-0.1, 0.0)
+    R.check(S, 'reverse allowed once off the dock',
+            wait_for(lambda: any(lin < 0.0 for _, (lin, _a) in speed_frames(rig, t2)), 3))
+    stop_driving(probe, rig)
+    with rig.lock:
+        rig.dock = None
+
+
 def s09_link_loss(probe, rig, R):
     S = 'MCU link loss'
     drive(probe, 0.2, 0.0, 1.5)
@@ -520,7 +584,7 @@ def s11_kill(probe, rig, R, bridge):
 
 
 SCENARIOS = [s01_boot, s02_round_trip, s03_stop_sequence, s04_idle_hold, s05_stop_button,
-             s06_tilt, s07_blade, s08_docked, s09_link_loss, s10_keys]
+             s06_tilt, s07_blade, s08_docked, s09_link_loss, s10_keys, s12_undock_forward]
 
 
 def main():

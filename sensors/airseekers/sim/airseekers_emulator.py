@@ -236,6 +236,38 @@ class Mcu:
         return [(t, v) for (t, k, v) in self.log if k == kind and t >= since]
 
 
+class DockPads:
+    """The charge contacts of the Tron's REVERSE-entry dock.
+
+    The robot is seated at a pose facing out of the dock. The contacts (the
+    MCU's ``dock_ok``) stay closed until it has driven ``pad_m`` FORWARD off
+    them; the dock body behind it is a hard stop, so reversing only pushes into
+    it (counted in ``pushes``) [ASSUMED pad length; the geometry is not
+    measured]. Once off the pads the dock stays left.
+    """
+
+    def __init__(self, x: float, y: float, yaw: float, pad_m: float = 0.10) -> None:
+        self.x, self.y, self.yaw, self.pad_m = x, y, yaw, pad_m
+        self.seated = True
+        self.pushes = 0
+
+    def along(self, plant: Plant) -> float:
+        """Signed distance travelled out of the dock along the seated heading."""
+        return (plant.x - self.x) * math.cos(self.yaw) + (plant.y - self.y) * math.sin(self.yaw)
+
+    def step(self, plant: Plant) -> bool:
+        if not self.seated:
+            return False
+        a = self.along(plant)
+        if a < 0.0:
+            plant.x -= a * math.cos(self.yaw)
+            plant.y -= a * math.sin(self.yaw)
+            self.pushes += 1
+        elif a > self.pad_m:
+            self.seated = False
+        return self.seated
+
+
 class AirseekersRig:
     """MCU + IMU + GNSS + keys + plant, serviced by one 500 Hz thread."""
 
@@ -256,6 +288,7 @@ class AirseekersRig:
         self.extra_roll_deg = 0.0      # injected chassis attitude (lift / tilt tests)
         self.blade_rpm = 0.0
         self.mcu_silent = False        # simulate a dead MCU link
+        self.dock: Optional[DockPads] = None   # seat_on_dock(); None = no dock model
         self.lock = threading.RLock()
         self._t0 = time.monotonic()
         self._stop = threading.Event()
@@ -306,6 +339,8 @@ class AirseekersRig:
                 steps = max(1, math.ceil(elapsed / self.PERIOD_S))
                 for _ in range(steps):
                     self.plant.step(elapsed / steps, *self.mcu.setpoint)
+                    if self.dock is not None and self.dock.seated:
+                        self.mcu.docked = self.dock.step(self.plant)
                 target_rpm = 3200.0 if self.mcu.cutter_on else 0.0
                 self.blade_rpm += (target_rpm - self.blade_rpm) * min(1.0, elapsed / 0.3)
                 if now >= next_fast and not self.mcu_silent:
@@ -344,6 +379,13 @@ class AirseekersRig:
             dm(lat, 2), 'N' if lat >= 0 else 'S', dm(lon, 3), 'E' if lon >= 0 else 'W')
         self.ports['gnss'].write(nmea(body))
 
+    def seat_on_dock(self, pad_m: float = 0.10) -> None:
+        """Seat the robot (at rest, where it stands) on a reverse-entry dock."""
+        with self.lock:
+            p = self.plant
+            self.dock = DockPads(p.x, p.y, p.yaw, pad_m)
+            self.mcu.docked = True
+
     # -- observation -------------------------------------------------------------
     def snapshot(self) -> Dict[str, object]:
         with self.lock:
@@ -351,7 +393,9 @@ class AirseekersRig:
                     'yaw': self.plant.yaw, 'v': self.plant.v, 'w': self.plant.w,
                     'setpoint': self.mcu.setpoint, 'lift': self.mcu.lift,
                     'cutter_on': self.mcu.cutter_on, 'height_mm': self.mcu.height_mm,
-                    'blade_rpm': self.blade_rpm}
+                    'blade_rpm': self.blade_rpm,
+                    'dock_along': self.dock.along(self.plant) if self.dock else None,
+                    'dock_pushes': self.dock.pushes if self.dock else 0}
 
     def events(self, kind: str, since: float = -1e18):
         with self.lock:

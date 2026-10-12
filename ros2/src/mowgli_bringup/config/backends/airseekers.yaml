@@ -32,3 +32,7 @@ mowgli:
     # Host tilt trip debounce (the bridge's critical tilt band). The vendor
     # MCU has no tilt trip of its own short of its lift window.
     tilt_emergency_ms: 300
+    # The Tron reverses onto its charger (rear contacts, rear marker), so it
+    # leaves the dock driving FORWARD; reversing there only pushes into the
+    # contacts, and the bridge refuses reverse motion while docked anyway.
+    undock_forward: true

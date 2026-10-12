@@ -37,3 +37,14 @@ def test_firmware_compatible_needs_link_versions_and_imu():
     assert not firmware_compatible(True, None, True)
     assert not firmware_compatible(True, v, False)
     assert '0.6.36' in firmware_version_string(v)
+
+
+def test_leaving_the_pads_drops_docked_and_charging():
+    """dock_ok is the whole docked signal (Status.is_charging, Power,
+    BatteryState): when the forward undock lifts the robot off the contacts,
+    every docked field drops with it, so the normal driving rules take over."""
+    on = project_power(batt(True, -4.1))
+    off = project_power(batt(False, 0.7))
+    assert on.charger_enabled and on.battery_current > 1.0
+    assert not off.charger_enabled
+    assert off.battery_current == 0.0 and off.charge_current == 0.0
