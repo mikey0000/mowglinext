@@ -7,7 +7,7 @@ import {formatArea} from "../utils/areaLabel.ts";
 import {mowingAreaIndexById} from "../utils/mapAreaIndex.ts";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import {useApi} from "../hooks/useApi.ts";
-import {App, Button} from "antd";
+import {App, Button, Drawer} from "antd";
 import turfArea from "@turf/area";
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useTranslation} from "react-i18next";
@@ -77,6 +77,10 @@ import {JoystickOverlay} from "./map/components/JoystickOverlay.tsx";
 import {useIsMobile} from "../hooks/useIsMobile.ts";
 import {useThemeMode} from "../theme/ThemeContext.tsx";
 import {useFleetPeers} from "../hooks/useFleetPeers.ts";
+import {useImagery} from "../hooks/useImagery.ts";
+import {ImageryLayers} from "./map/components/ImageryLayers.tsx";
+import {ImageryPanel} from "./map/components/ImageryPanel.tsx";
+import type {ImageryOverlay} from "../utils/imagery.ts";
 import {useRobotDescription} from "../hooks/useRobotDescription.ts";
 import {FLEET_PEER_COLOR, peerDisplayFeatures, peerMapPoses} from "../utils/fleetPeers.ts";
 
@@ -278,6 +282,15 @@ export const MapPage: React.FC<{compact?: boolean}> = ({compact = false}) => {
         }
         return [_datumLat, _datumLon, 0]
     }, [_datumLat, _datumLon])
+
+    // Custom map tiles (operator-uploaded XYZ tile sets, wiki/GUI.md).
+    const imagery = useImagery();
+    const [imageryDrawerOpen, setImageryDrawerOpen] = useState(false);
+    const handleImageryZoomTo = useCallback((o: ImageryOverlay) => {
+        const b = o.bounds;
+        if (b) mapInstanceRef.current?.fitBounds([[b[0], b[1]], [b[2], b[3]]], {padding: 40, duration: 600});
+        setImageryDrawerOpen(false);
+    }, []);
 
     const mowerHeadingRad = mowerHeadingFeature instanceof LineFeatureBase
         ? getMowerHeadingRad(mowerHeadingFeature.geometry.coordinates, (lng, lat) =>
@@ -1431,6 +1444,7 @@ export const MapPage: React.FC<{compact?: boolean}> = ({compact = false}) => {
                 >
                     {tileUri ? <Source type={"raster"} id={"custom-raster"} tiles={[tileUri]} tileSize={256}/> : null}
                     {tileUri ? <Layer type={"raster"} source={"custom-raster"} id={"custom-layer"}/> : null}
+                    <ImageryLayers overlays={imagery.overlays}/>
                     <Source type={"geojson"} id={"labels"} data={labelsCollection}/>
                     <Layer type={"symbol"} id={"mower"} source={"labels"} layout={{
                         "text-field": ['get', 'title'],
@@ -1627,6 +1641,7 @@ export const MapPage: React.FC<{compact?: boolean}> = ({compact = false}) => {
                 >
                     {tileUri ? <Source type={"raster"} id={"custom-raster"} tiles={[tileUri]} tileSize={256}/> : null}
                     {tileUri ? <Layer type={"raster"} source={"custom-raster"} id={"custom-layer"}/> : null}
+                    <ImageryLayers overlays={imagery.overlays}/>
                     <Source type={"geojson"} id={"labels"} data={labelsCollection}/>
                     <Layer type={"symbol"} id={"mower"} source={"labels"} layout={{
                         "text-field": ['get', 'title'],
@@ -1905,6 +1920,7 @@ export const MapPage: React.FC<{compact?: boolean}> = ({compact = false}) => {
                         onUndo={handleUndo}
                         onRedo={handleRedo}
                         onToggleSatellite={() => setUseSatellite(!useSatellite)}
+                        onImagery={() => setImageryDrawerOpen(true)}
                         showObstacleClearance={obstacleClearancePreview.enabled}
                         onToggleObstacleClearance={() => obstacleClearancePreview.setEnabled((v) => !v)}
                         showCoveragePreview={coveragePreview.enabled}
@@ -1997,6 +2013,12 @@ export const MapPage: React.FC<{compact?: boolean}> = ({compact = false}) => {
                             {...mowerActions}
                         />
                     </div>
+                )}
+                {isMobile && (
+                    <Drawer placement="bottom" open={imageryDrawerOpen} onClose={() => setImageryDrawerOpen(false)}
+                            title={t('imagery.title')} height="70vh" destroyOnHidden>
+                        <ImageryPanel imagery={imagery} onZoomTo={handleImageryZoomTo}/>
+                    </Drawer>
                 )}
                 {/* Desktop: Right panel — collapsible sections, one open at a time */}
                 {!isMobile && (
@@ -2105,6 +2127,16 @@ export const MapPage: React.FC<{compact?: boolean}> = ({compact = false}) => {
                                             onSmooth={() => handleReshapeSelectedCorridor((pts) => smoothPolyline(pts))}
                                             onSimplify={() => handleReshapeSelectedCorridor((pts) => simplifyPolyline(pts))}
                                         />
+                                    ),
+                                },
+                                {
+                                    key: 'imagery',
+                                    title: t('imagery.title'),
+                                    badge: imagery.overlays.length || undefined,
+                                    content: (
+                                        <div style={{padding: '4px 12px 12px'}}>
+                                            <ImageryPanel imagery={imagery} onZoomTo={handleImageryZoomTo}/>
+                                        </div>
                                     ),
                                 },
                                 {

@@ -4781,5 +4781,29 @@
     "mapAlt": "Assembled mower from the running robot description",
     "dockStyle": "Styled dock",
     "dockNote": "Illustrative dock · 67 × 46 cm. Paired with the chassis in Hardware and shown automatically on the map."
+  },
+  "imagery": {
+    "title": "Custom map tiles",
+    "drop": "Drop a tile set here or click to choose",
+    "dropHint": "A .zip of an XYZ tile folder (<z>/<x>/<y>.png), up to {{mb}} MB",
+    "zipScheme": "Tile .zip rows",
+    "schemeAuto": "Auto-detect",
+    "tooLarge": "File is larger than {{mb}} MB",
+    "badType": "Unsupported file type (use a .zip of XYZ tiles)",
+    "uploaded": "Uploaded \"{{label}}\"",
+    "processingHint": "The robot is unpacking it; it appears on the map when ready.",
+    "uploadFailed": "Upload failed",
+    "saveFailed": "Could not update the map tiles",
+    "uploading": "Uploading {{file}}",
+    "cancel": "Cancel",
+    "empty": "No custom map tiles yet.",
+    "processing": "Unpacking",
+    "visible": "Show on the map",
+    "opacity": "Opacity",
+    "zoomTo": "Zoom to these tiles",
+    "moveUp": "Move up (draw above)",
+    "moveDown": "Move down (draw below)",
+    "delete": "Delete",
+    "deleteConfirm": "Delete \"{{label}}\" and its tiles?"
   }
 }

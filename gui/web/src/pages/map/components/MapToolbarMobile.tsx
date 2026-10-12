@@ -7,6 +7,7 @@ import {
     UndoOutlined,
     RedoOutlined,
     GlobalOutlined,
+    PictureOutlined,
     EllipsisOutlined,
     SaveOutlined,
     EditOutlined,
@@ -59,6 +60,8 @@ interface MapToolbarMobileProps {
     onUndo: () => void;
     onRedo: () => void;
     onToggleSatellite: () => void;
+    /** Open the custom map tiles sheet. */
+    onImagery?: () => void;
     showObstacleClearance?: boolean;
     onToggleObstacleClearance?: () => void;
     showCoveragePreview?: boolean;
@@ -112,7 +115,7 @@ interface MapToolbarMobileProps {
 export const MapToolbarMobile = ({
     editMap, hasUnsavedChanges, manualMode, useSatellite,
     historyIndex, editHistoryLength, mowingAreas,
-    onEditMap, onSaveMap, onRestoreBackup, onUndo, onRedo, onToggleSatellite,
+    onEditMap, onSaveMap, onRestoreBackup, onUndo, onRedo, onToggleSatellite, onImagery,
     showObstacleClearance = false, onToggleObstacleClearance,
     showCoveragePreview = false, onToggleCoveragePreview,
     onManualMode, onStopManualMode,
@@ -210,6 +213,7 @@ export const MapToolbarMobile = ({
         ...(emergency ? [{key: "emergencyOff", label: t("mapToolbarMobile.emergencyOff")}]: []),
         {type: "group", label: t("mapToolbar.displayGroup"), children: [
             {key: "satellite", icon: <GlobalOutlined />, label: useSatellite ? t("mapToolbarMobile.darkMap") : t("mapToolbarMobile.satellite")},
+            ...(onImagery ? [{key: "imagery", icon: <PictureOutlined />, label: t("imagery.title")}] : []),
             ...(onToggleObstacleClearance
                 ? [{
                     key: "obstacleClearance",
@@ -261,6 +265,7 @@ export const MapToolbarMobile = ({
         switch (key) {
             case "emergencyOff": safeCall(onEmergencyOff); break;
             case "satellite": onToggleSatellite(); break;
+            case "imagery": onImagery?.(); break;
             case "obstacleClearance": onToggleObstacleClearance?.(); break;
             case "coveragePreview": onToggleCoveragePreview?.(); break;
             case "areaRecording": safeCall(onAreaRecording); break;

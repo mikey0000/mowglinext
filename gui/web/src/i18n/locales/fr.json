@@ -4781,5 +4781,29 @@
     "mapAlt": "Tondeuse assemblée selon la description du robot en service",
     "dockStyle": "Base stylisée",
     "dockNote": "Base illustrative · 67 × 46 cm. Associée au châssis dans Matériel et affichée automatiquement sur la carte."
+  },
+  "imagery": {
+    "title": "Tuiles de carte personnalisées",
+    "drop": "Déposez un jeu de tuiles ici ou cliquez pour choisir",
+    "dropHint": "Un .zip d'un dossier de tuiles XYZ (<z>/<x>/<y>.png), jusqu'à {{mb}} Mo",
+    "zipScheme": "Lignes du .zip de tuiles",
+    "schemeAuto": "Détection auto",
+    "tooLarge": "Le fichier dépasse {{mb}} Mo",
+    "badType": "Type de fichier non pris en charge (utilisez un .zip de tuiles XYZ)",
+    "uploaded": "« {{label}} » envoyé",
+    "processingHint": "Le robot le décompresse ; il apparaîtra sur la carte une fois prêt.",
+    "uploadFailed": "Échec de l'envoi",
+    "saveFailed": "Impossible de mettre à jour les tuiles de carte",
+    "uploading": "Envoi de {{file}}",
+    "cancel": "Annuler",
+    "empty": "Aucune tuile de carte personnalisée.",
+    "processing": "Décompression",
+    "visible": "Afficher sur la carte",
+    "opacity": "Opacité",
+    "zoomTo": "Zoomer sur ces tuiles",
+    "moveUp": "Monter (dessiner au-dessus)",
+    "moveDown": "Descendre (dessiner en dessous)",
+    "delete": "Supprimer",
+    "deleteConfirm": "Supprimer « {{label}} » et ses tuiles ?"
   }
 }
