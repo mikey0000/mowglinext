@@ -41,6 +41,7 @@ func NewAPI(dbProvider types.IDBProvider, dockerProvider types.IDockerProvider, 
 	GNSSRoutes(apiGroup, dbProvider, dockerProvider)
 	ContainersRoutes(apiGroup, dockerProvider)
 	MowgliNextRoutes(apiGroup, rosProvider)
+	ImageryRoutes(apiGroup)
 	SetupRoutes(apiGroup, firmwareProvider)
 	SystemRoutes(apiGroup)
 	VersionsRoutes(apiGroup, dockerProvider)

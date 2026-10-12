@@ -99,6 +99,7 @@ See `docs/UPDATE_CHECKS.md` for the behavior.
 | `gui/pkg/api/params.go` | 64 | Live ROS2 parameter list/set |
 | `gui/pkg/api/setup.go` | 95 | `/setup/flashBoard` SSE stream around `FlashFirmware`; `flashStreamEvent` lifts `types.FlashStageMarker` lines out of the log as `stage` events (JSON `FlashStageEvent`), everything else is a `message` |
 | `gui/pkg/api/tiles.go` | 47 | Reverse proxy `/tiles/*` → `system.map.tileServer` |
+| `gui/pkg/api/imagery.go` | 807 | Custom map tiles: `.zip` XYZ tile-set upload (unpacked in the background into `$MAP_TILES_DIR`, default `/ros2_ws/maps/map_tiles`), layer list/opacity/visibility/order in `overlays.json`, tile route |
 | `gui/pkg/api/types.go` | 31 | `OkResponse`, `ErrorResponse`, small DTOs |
 | **pkg/providers/** | | |
 | `gui/pkg/providers/ros.go` | 586 | `RosProvider` (IRosProvider): `topicMap`, lazy upstream subscribe, per-listener mailbox `RosSubscriber`, map polling, dock pose cache, param passthrough |
@@ -184,6 +185,8 @@ See `docs/UPDATE_CHECKS.md` for the behavior.
 | `GET/PUT /notifications/settings`, `GET /notifications/status`, `POST /notifications/test` | `gui/pkg/api/notifications.go` (`NotificationRoutes`) | test sends with the STORED config even while disabled; 502 carries the channel's HTTP error |
 | `POST /import/openmower` | `gui/pkg/api/openmower_import.go:162` | `{map, om_datum_lat?, om_datum_lon?, apply}` — preview unless `apply` |
 | `ANY /tiles/*proxyPath` (root, not `/api`) | `gui/pkg/api/tiles.go:46` | only when `system.map.enabled=true` |
+| `GET`·`POST /mowglinext/imagery`, `PATCH`·`DELETE /mowglinext/imagery/:name`, `POST /mowglinext/imagery-order` | `gui/pkg/api/imagery.go` | custom map tiles; upload is multipart `label`, `scheme`, then `file` |
+| `GET /mowglinext/tiles/:name/:z/:x/:y` | `gui/pkg/api/imagery.go` | name/z/x/y validated before any file access; `204` outside the tile set |
 | `GET /swagger/*any` (root) | `gui/pkg/api/api.go:62` | from `gui/docs` |
 | `GET /`, `/assets/*`, SPA fallback (root) | `gui/pkg/api/web_static.go:19-25` | |
 
