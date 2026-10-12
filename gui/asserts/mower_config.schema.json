@@ -704,6 +704,12 @@
           "default": 0.16,
           "description": "Reverse speed when undocking (m/s)."
         },
+        "undock_forward": {
+          "type": "boolean",
+          "title": "Undock Forward",
+          "default": false,
+          "description": "Drive forward off the dock instead of reversing (robots that dock in reverse). Normally set by the hardware backend."
+        },
         "dock_approach_distance": {
           "type": "number",
           "title": "Dock Approach Distance",
