@@ -40,7 +40,8 @@ struct BackUpTestAccess
   static bool GoalResponseReady(const BackUp& node)
   {
     return node.reverse_.goal_handle_future.valid() &&
-           node.reverse_.goal_handle_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+           node.reverse_.goal_handle_future.wait_for(std::chrono::seconds(0)) ==
+               std::future_status::ready;
   }
 
   static bool HasHarvestedHandle(const BackUp& node)

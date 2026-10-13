@@ -763,10 +763,7 @@ BT::NodeStatus BackUp::onStart()
   if (forward)
   {
     // DriveOnHeading: target and speed both positive = straight ahead.
-    RCLCPP_INFO(ctx->node->get_logger(),
-                "BackUp: driving forward %.2fm at %.2f m/s",
-                dist,
-                speed);
+    RCLCPP_INFO(ctx->node->get_logger(), "BackUp: driving forward %.2fm at %.2f m/s", dist, speed);
     return forward_.start(ctx->node, "/drive_on_heading", dist, speed, time_allowance_s);
   }
   // BackUp target is negative X (reverse) in base_link frame
